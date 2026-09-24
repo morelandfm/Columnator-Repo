@@ -1,0 +1,110 @@
+const int MS1 = 13;
+const int MS2 = 12;
+const int direction = 11;
+const int clk = 10;
+const int on_off = 9;
+
+const int stp_size_chg = 8;
+const int dir_chg = 7;
+const int move = 6;
+
+int stepDelay = 2000;
+
+/*
+  360 / stepsPerRevolution  = degrees per step
+  This motor has step size of 200, 400, 800, and 1600
+*/
+
+/*
+This function is there to change the direction of the stepper
+Not sure yet if low is CW or CCW but either way this function
+should activate when the direction button is pressed, and whatever
+the current state of the button is (high/low) it should change to the other
+
+In the loop when passing this function you need to pass to it currentDir = digitalRead(direction)
+*/
+void dirChange(int currentState){
+  if(currentState == 1){
+    digitalWrite(direction, LOW);
+  }
+  else{
+    digitalWrite(direction, HIGH);
+  }
+  Serial.print("Direction changed");
+  delay(300);
+}
+
+/*
+This function fractions the step size based on current assumptions that keeping
+MS1 and MS2 low will do a full step, MS1 low and MS2 high will do a half step,
+MS1 high and MS2 low will do a quarter step, and both MS1 and MS2 high will do an eigth step
+
+So then the inputs need to be digitalRead(MS1), digitalRead(MS2)
+*/
+void stepChange(int msone, int mstwo){
+  if(msone == 0 && mstwo == 0){
+    digitalWrite(MS1, LOW);
+    digitalWrite(MS2, HIGH);
+  }
+  else if(msone == 0 && mstwo == 1){
+    digitalWrite(MS1, HIGH);
+    digitalWrite(MS2, LOW);
+  }
+  else if(msone == 1 && mstwo == 0){
+    digitalWrite(MS1, HIGH);
+    digitalWrite(MS2, HIGH);
+  }
+  else if(msone == 1 && mstwo == 1){
+    digitalWrite(MS1, LOW);
+    digitalWrite(MS2, LOW);
+  }
+  Serial.print("Step size changed");
+  delay(300);
+}
+
+/*
+This is the function for actually moving the stepper, and really
+should just take nothing, and be called when the moving button is pressed
+*/
+void moving(void){
+  digitalWrite(clk, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(clk, LOW);
+  delayMicroseconds(stepDelay);
+
+}
+
+void setup() {
+  pinMode(stp_size_chg, INPUT_PULLUP);
+  pinMode(dir_chg, INPUT_PULLUP);
+  pinMode(move, INPUT_PULLUP);
+  pinMode(direction, OUTPUT);
+  pinMode(clk, OUTPUT);
+  pinMode(MS1, OUTPUT);
+  pinMode(MS2, OUTPUT);
+  pinMode(on_off, OUTPUT);
+  digitalWrite(MS1, LOW);
+  digitalWrite(MS2, LOW);
+  digitalWrite(direction, LOW);
+  digitalWrite(on_off, HIGH);
+  digitalWrite(clk, LOW);
+  Serial.begin(115200);
+
+  Serial.print("Set up complete");
+
+}
+
+void loop() {
+  int dirState = digitalRead(dir_chg);
+  int stepState = digitalRead(stp_size_chg);
+  int moveState = digitalRead(move);
+  if(dirState == 0){
+    dirChange(digitalRead(direction));
+  }
+  if(stepState == 0){
+    stepChange(digitalRead(MS1), digitalRead(MS2));
+  }
+  while(digitalRead(move) == 0){
+    moving();
+  }
+}
