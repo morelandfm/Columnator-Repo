@@ -1,0 +1,141 @@
+/*Latest test
+Working as intended
+*/
+/*Next steps
+-Make forward and backward buttons
+    -forward button can be in steps equal to the size of the column width
+    -back button should just be continuous as long as the button is held
+*/
+// 250 200
+// 300 250
+/*
+@200 steps each step is 1.8 deg, and 0.0003125"
+*/
+constexpr int FPUSH = 1000; //The final push to make sure that the track is clear, should be long enough to go over the edge of the delrin
+constexpr int CPUSH = 800; //The number of steps to push a single column of 
+constexpr int RPUSH = 960; //The number of steps to push a rail if needed or desired
+constexpr int RESET = 9960; // 10000 //The number of steps required to reset the position (3.125")
+constexpr int STARTPOS = 40; //The number of steps that will take the stepper from the reset position to the position where the array will just meet the edge of the delrin
+
+constexpr int PUL = 1; //GPIO port for stepper pulse
+constexpr int DIR = 2; //GPIO port for stepper direction
+constexpr int ENA = 3; //GPIO port for enable on the stepper motor driver
+//constexpr int LACT = 8; //GPIO port for linear actuator, not currently using the linear motors anymore
+//constexpr int START_BT = 5; //GPIO port for button 
+constexpr int BACK_BT = 4; //GPIO port for a button to move the stepper back
+constexpr int FOWARD_BT = 5; //GPIO port for a button to move the stepper foward
+
+//Determine the amount of steps required to push a single column
+void push(int duration){
+  digitalWrite(DIR, LOW);
+  delay(10);
+  //1000 is a place holder, the count should remain the same throughout and so would then be the most accurate way to duplicate the distance at which the pusher is pushing a column
+  //If the counter is below the desired count, continues to push through pulse
+  for (int i = 0; i < duration; i++){
+    //Pulsing for moving the stepper, speed is increased as delay is decreased
+    digitalWrite(PUL, HIGH);
+    delay(1);
+    digitalWrite(PUL, LOW);
+    delay(1);
+  }
+  //digitalWrite(DIR, HIGH);
+}
+
+void manualReset(bool direction, int btn) {
+  digitalWrite(DIR, direction);
+  delay(10);
+  while (!digitalRead(btn))
+    reset(10, true);
+}
+
+//This function is the reset position for the columnating function
+void reset(int duration, bool direction){
+  for (int i = 0; i < duration; i++){
+    digitalWrite(PUL, HIGH);
+    delay(1);
+    digitalWrite(PUL, LOW);
+    delay(1);    
+  }
+  //digitalWrite(dir, LOW);
+}
+
+/* Not currently using the linear motors anymore so no need for this code
+//This function controls the linear motor
+void actuate(void){
+  digitalWrite(LACT, HIGH);
+  delay(800);
+  digitalWrite(LACT, LOW);
+  delay(100);
+}
+*/
+
+//Function for automatically columnating each column on an array
+void columnate(){
+  //Go to the start position
+  Serial.println("inital push rail break");
+  digitalWrite(DIR, LOW);
+  //push(STARTPOS);
+  delay(200);
+  push(RPUSH);
+  delay(600);
+  //actuate();
+  delay(600);
+  //This array has 10 columns
+  //Set to one when testing the distance it pushes
+  //for (int i = 0; i < 10; i++){
+  for (int i = 0; i < 10; i++){
+    if (!digitalRead(BACK_BT) || !digitalRead(FOWARD_BT))
+      return;
+
+    Serial.print("columnate #");
+    Serial.println(i);
+    //digitalWrite(DIR, LOW);
+    //Calls the single column push function
+    push(CPUSH);
+    //This delay is there in order to give the stepper enough time to push the column before it actuates it, should be equal to or longer than the push function
+    delay(1000);
+    //Extend linear actuator
+    //actuate();
+    //Delay in the program for the linear actuator to actually break the column
+    delay(1000);
+  }
+  delay(1000);
+  push(FPUSH);
+  Serial.println("columnate reset");
+  digitalWrite(DIR, true);
+  delay(10);
+  reset(RESET, true);
+  //Finish is the function that will push out the last column and clear the track, going a little bit beyond the end of the delrin
+}
+
+//Setting up all of the GPIO for the pico
+void setup() 
+{
+  Serial.begin(115200);
+  pinMode(START_BT, INPUT_PULLUP);
+  pinMode(PUL, OUTPUT);
+  pinMode(DIR, OUTPUT);
+  //pinMode(LACT, OUTPUT);
+  pinMode(BACK_BT, INPUT_PULLUP);
+  pinMode(FOWARD_BT, INPUT_PULLUP);
+  
+  //digitalWrite(LACT, LOW);
+}
+
+//For now the button is the only thing getting the system to run so that's all that's in the loop
+void loop() 
+{
+  if (digitalRead(START_BT) == 0){
+    Serial.println("columnate start");
+    columnate();
+  }
+
+  //Here for when needed
+  if (digitalRead(BACK_BT) == 0){
+    manualReset(true, BACK_BT);
+  }
+
+  if (digitalRead(FOWARD_BT) == 0){
+    manualReset(false, FOWARD_BT);
+  }
+}
